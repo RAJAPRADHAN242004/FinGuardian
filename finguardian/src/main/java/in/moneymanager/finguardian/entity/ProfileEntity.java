@@ -17,30 +17,35 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class ProfileEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String fullName;
+
     @Column(unique = true)
     private String email;
+
     private String password;
+
     private String profileImageUrl;
+
     @Column(updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
     private Boolean isActive;
+
     private String activationToken;
 
-    public void setActivationToken(String activationToken) {
-        this.activationToken = activationToken;
-    }
-
     @PrePersist
-    public void prePersist(){
-        if(this.isActive == null){
-            isActive = false;
+    public void prePersist() {
+        if (this.isActive == null) {
+            this.isActive = false;
         }
     }
 }
