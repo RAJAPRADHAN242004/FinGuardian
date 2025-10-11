@@ -2,8 +2,8 @@ services:
   - type: web
     name: finguardian
     env: docker
-    dockerfilePath: ./FinGuardian/Dockerfile
-    buildContext: ./FinGuardian
+    dockerfilePath: ./finGuardian/Dockerfile
+    buildContext: ./finGuardian
     plan: free
     envVars:
       - key: PORT
