@@ -6,7 +6,6 @@ import in.moneymanager.finguardian.entity.ProfileEntity;
 import in.moneymanager.finguardian.repository.ProfileRepository;
 import in.moneymanager.finguardian.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -28,8 +27,8 @@ public class ProfileService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
 
-    @Value("${app.activation.url}")
-    private String activationURL;
+//    @Value("${app.activation.url}")
+//    private String activationURL;
 
     public ProfileDTO registerProfile(ProfileDTO profileDTO) {
         // Check if email already exists
@@ -43,7 +42,7 @@ public class ProfileService {
 
         newProfile = profileRepository.save(newProfile);
 
-        String activationLink = activationURL+"/api/activate?token=" + newProfile.getActivationToken();
+        String activationLink ="https://finguardian.onrender.com/api/activate?token=" + newProfile.getActivationToken();
         String subject = "Activate your FinGuardian Account";
         String body = "Click on the following link to activate your account:\n" + activationLink;
 
