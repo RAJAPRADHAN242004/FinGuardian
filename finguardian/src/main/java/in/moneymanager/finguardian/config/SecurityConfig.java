@@ -122,10 +122,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/register",     // Match the path without the context path
                                 "/activate",     // Match the path without the context path
-                                "/login",        // Match the path without the context path
-                                "/**/register",  // Robust matcher for any path ending in /register
-                                "/**/activate",
-                                "/**/login"
+                                "/login"     // Match the path without the context path
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
