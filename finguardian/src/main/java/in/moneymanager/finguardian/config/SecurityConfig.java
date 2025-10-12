@@ -120,12 +120,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Permits all public endpoints (fixes the 403 Forbidden)
                         .requestMatchers(
-                                "/register",     // Match the path without the context path
-                                "/activate",     // Match the path without the context path
-                                "/login",        // Match the path without the context path
-                                "/**/register",  // Robust matcher for any path ending in /register
-                                "/**/activate",
-                                "/**/login"
+                                "/api/register",     // Match the path without the context path
+                                "/api/activate",     // Match the path without the context path
+                                "/api/login"     // Match the path without the context path
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
