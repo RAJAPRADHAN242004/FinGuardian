@@ -37,8 +37,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ✅ allow your public endpoints (make sure they match your controllers)
                         .requestMatchers(
-                                "/status",
-                                "/health",
                                 "/api/register",
                                 "/api/activate",
                                 "/api/login"
