@@ -21,24 +21,21 @@ public class ProfileController {
     public ResponseEntity<?> registerProfile(@RequestBody ProfileDTO profileDTO) {
         try {
             ProfileDTO registeredProfile = profileService.registerProfile(profileDTO);
+            // HTTP 201 Created for successful registration
             return ResponseEntity.status(HttpStatus.CREATED).body(registeredProfile);
         } catch (Exception e) {
+            // HTTP 400 Bad Request for errors like "Email already registered"
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
-    @GetMapping("/activate")
-    public ResponseEntity<String> activateProfile(@RequestParam String token) {
-        boolean isActivated = profileService.activateProfile(token);
-        if (isActivated) {
-            return ResponseEntity.ok("Profile activated successfully!");
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Invalid or expired activation token");
-        }
-    }
+    /* * The /activate endpoint is removed as accounts are now active by default.
+     */
+
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody AuthDTO authDTO) {
         try {
+            // Check if account is active is still necessary
             if (!profileService.isAccountActive(authDTO.getEmail())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                         "message", "Account is not active. Please activate your account first."
@@ -52,5 +49,4 @@ public class ProfileController {
             ));
         }
     }
-
 }
