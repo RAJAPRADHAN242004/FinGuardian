@@ -6,7 +6,6 @@ import in.moneymanager.finguardian.entity.ProfileEntity;
 import in.moneymanager.finguardian.repository.ProfileRepository;
 import in.moneymanager.finguardian.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,68 +16,58 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
 
     private final ProfileRepository profileRepository;
+    // EmailService is still kept, assuming it will be used for other purposes (e.g., password reset)
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
 
-    // Activation base URL (e.g. https://finguardian.onrender.com/api/activate)
-    @Value("${app.activation.url}")
-    private String activationURL;
+    // ❌ app.activation.url is removed as it's not needed
 
     /**
-     * Register a new profile, persist it and send activation email.
+     * Register a new profile and set it to active immediately.
      */
     public ProfileDTO registerProfile(ProfileDTO profileDTO) {
+        // Validation check
         if (profileRepository.findByEmail(profileDTO.getEmail()).isPresent()) {
             throw new RuntimeException("Email already registered");
         }
 
         ProfileEntity newProfile = toEntity(profileDTO);
-        newProfile.setIsActive(false);
-        newProfile.setActivationToken(UUID.randomUUID().toString());
+
+        // ✨ Account is active by default, no email verification needed
+        newProfile.setIsActive(true);
+        newProfile.setActivationToken(null);
+
+        // Timestamps can be left to the entity's @CreationTimestamp/@UpdateTimestamp if configured,
+        // but explicitly setting them here is also fine.
         newProfile.setCreatedAt(LocalDateTime.now());
         newProfile.setUpdatedAt(LocalDateTime.now());
 
         newProfile = profileRepository.save(newProfile);
 
-        String activationLink = activationURL + "?token=" + newProfile.getActivationToken();
-        String subject = "Activate your FinGuardian Account";
-        String body = "Hello " + newProfile.getFullName() + ",\n\n" +
-                "Click the following link to activate your account:\n" +
-                activationLink + "\n\nThank you for joining FinGuardian!";
-
-        emailService.sendEmail(newProfile.getEmail(), subject, body);
+        // ❌ Activation email logic is completely removed
 
         return toDTO(newProfile);
     }
 
     /**
-     * Activate a profile using the activation token.
+     * The activateProfile method is now obsolete and removed.
      */
-    public boolean activateProfile(String activationToken) {
-        return profileRepository.findByActivationToken(activationToken)
-                .map(profile -> {
-                    profile.setIsActive(true);
-                    profile.setActivationToken(null);
-                    profile.setUpdatedAt(LocalDateTime.now());
-                    profileRepository.save(profile);
-                    return true;
-                })
-                .orElse(false);
-    }
 
     /**
      * Check if account is active by email.
      */
     public boolean isAccountActive(String email) {
+        // Since registration automatically sets isActive=true, this is mainly a check
+        // against database defaults or potential future manual deactivation.
         return profileRepository.findByEmail(email)
                 .map(ProfileEntity::getIsActive)
                 .orElse(false);
@@ -86,7 +75,6 @@ public class ProfileService {
 
     /**
      * Returns the currently authenticated profile entity.
-     * (You flagged this — included here.)
      */
     public ProfileEntity getCurrentProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -101,24 +89,23 @@ public class ProfileService {
      * Get a public-profile DTO. If email == null, returns the current authenticated user's public profile.
      */
     public ProfileDTO getPublicProfile(String email) {
-        ProfileEntity currentUser;
-        if (email == null) {
-            currentUser = getCurrentProfile();
-        } else {
-            currentUser = profileRepository.findByEmail(email)
-                    .orElseThrow(() -> new UsernameNotFoundException("Profile not found with email: " + email));
-        }
+        Optional<ProfileEntity> profileOptional = Optional.ofNullable(email)
+                .flatMap(profileRepository::findByEmail)
+                .or(() -> {
+                    // If email is null, try to get current authenticated user
+                    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                    if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) {
+                        return profileRepository.findByEmail(authentication.getName());
+                    }
+                    return Optional.empty();
+                });
 
-        return ProfileDTO.builder()
-                .id(currentUser.getId())
-                .fullName(currentUser.getFullName())
-                .email(currentUser.getEmail())
-                .profileImageUrl(currentUser.getProfileImageUrl())
-                .createdAt(currentUser.getCreatedAt())
-                .updatedAt(currentUser.getUpdatedAt())
-                .isActive(currentUser.getIsActive())
-                .build();
+        ProfileEntity profile = profileOptional
+                .orElseThrow(() -> new UsernameNotFoundException("Profile not found"));
+
+        return toDTO(profile);
     }
+
 
     /**
      * Authenticate credentials and generate JWT token + return public user info.
@@ -142,15 +129,16 @@ public class ProfileService {
 
     private ProfileEntity toEntity(ProfileDTO dto) {
         return ProfileEntity.builder()
-                // id intentionally left null to allow DB to generate
                 .fullName(dto.getFullName())
                 .email(dto.getEmail())
+                // Password must be encoded here
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .profileImageUrl(dto.getProfileImageUrl())
-                .isActive(false)
-                .activationToken(null)
-                .createdAt(dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now())
-                .updatedAt(dto.getUpdatedAt() != null ? dto.getUpdatedAt() : LocalDateTime.now())
+                // Ensure isActive is set to true/false as needed (will be overridden in registerProfile for registration)
+                .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
+                .activationToken(null) // Not needed
+                .createdAt(dto.getCreatedAt())
+                .updatedAt(dto.getUpdatedAt())
                 .build();
     }
 
@@ -159,8 +147,7 @@ public class ProfileService {
                 .id(entity.getId())
                 .fullName(entity.getFullName())
                 .email(entity.getEmail())
-                // DO NOT send hashed password back to client — exclude or null it if present in DTO
-                .password(null)
+                .password(null) // NEVER send password
                 .profileImageUrl(entity.getProfileImageUrl())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
