@@ -1,42 +1,46 @@
 package in.moneymanager.finguardian.service;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class EmailService {
 
     private final JavaMailSender mailSender;
-    private final String fromEmail;
 
-    public EmailService(JavaMailSender mailSender,
-                        @Value("${spring.mail.from}") String fromEmail) {  // ✅ FIXED property name
-        this.mailSender = mailSender;
-        this.fromEmail = fromEmail;
-    }
+    @Value("${spring.mail.properties.mail.smtp.from}")
+    private String fromEmail;
 
     public void sendEmail(String to, String subject, String body) {
         try {
-            System.out.println("📨 Attempting to send email...");
-            System.out.println("From: " + fromEmail);
-            System.out.println("To: " + to);
-            System.out.println("Subject: " + subject);
-
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail); // ✅ must be a verified sender in Brevo
+            message.setFrom(fromEmail);
             message.setTo(to);
             message.setSubject(subject);
             message.setText(body);
-
             mailSender.send(message);
-
-            System.out.println("✅ Email successfully sent to " + to);
-        } catch (Exception e) {
-            System.err.println("❌ Email sending failed: " + e.getMessage());
-            e.printStackTrace(); // Shows full error in console for debugging
-            throw new RuntimeException("Email sending failed", e);
+        }catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
     }
+
+    public void sendEmailWithAttachment(String to, String subject, String body, byte[] attachment, String filename) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true);
+        helper.setFrom(fromEmail);
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(body);
+        helper.addAttachment(filename, new ByteArrayResource(attachment));
+        mailSender.send(message);
+    }
 }
+
